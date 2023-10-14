@@ -1,10 +1,11 @@
 from aiogram import Router, F, types
-from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
+# from aiogram.filters import Command
+# from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
 from helpers import make_row_keyboard
+from database import db
 
 
 class Registration(StatesGroup):
@@ -98,15 +99,14 @@ async def process_edu_sector(message: types.Message, state: FSMContext):
     await state.update_data(edu_sector=message.text)
     await state.update_data(finished=True)
     user_data = await state.get_data()
-    ans = 'Отлично! Проверь, правильно ли ты ввел свои данные:\n' \
-                         f'Имя: {user_data["name"]}\n' \
-                         f'Пол: {user_data["gender"]}\n' \
-                         f'Возраст: {user_data["age"]} лет\n' \
-                         f'Образование: {user_data["education"]}\n'
+    ans = 'Проверь, правильно ли ты ввел свои данные:\n' \
+          f'Имя: {user_data["name"]}\n' \
+          f'Пол: {user_data["gender"]}\n' \
+          f'Возраст: {user_data["age"]} лет\n' \
+          f'Образование: {user_data["education"]}\n'
     if user_data.get('edu_sector', False):
         ans += f'Образовательная сфера: {user_data["edu_sector"]}'
-
-    await message.answer()
+    await message.answer(ans)
     await message.answer('Если всё верно, нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
                          reply_markup=make_row_keyboard(['Редактировать имя',
                                                          'Редактировать пол',
@@ -120,7 +120,16 @@ async def process_edu_sector(message: types.Message, state: FSMContext):
 @reg_router.message(Registration.waiting_for_confirm)
 async def process_confirm(message: types.Message, state: FSMContext):
     if message.text == 'Подтвердить':
-        # TODO сохранить данные в базу
+        # db.add_user(**await state.get_data())
+        user_data = await state.get_data()
+        await db.add_user(
+            tg_id=message.from_user.id,
+            name=user_data['name'],
+            age=user_data['age'],
+            gender=user_data['gender'],
+            education=user_data['education'],
+            edu_sector=user_data.get('edu_sector', None)
+        )
         await message.answer('Спасибо за регистрацию!', reply_markup=make_row_keyboard(['Начать викторину!']))
         await state.clear()
     elif message.text == 'Редактировать имя':
