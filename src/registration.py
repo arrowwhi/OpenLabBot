@@ -120,7 +120,6 @@ async def process_edu_sector(message: types.Message, state: FSMContext):
 @reg_router.message(Registration.waiting_for_confirm)
 async def process_confirm(message: types.Message, state: FSMContext):
     if message.text == 'Подтвердить':
-        # db.add_user(**await state.get_data())
         user_data = await state.get_data()
         await db.add_user(
             tg_id=message.from_user.id,

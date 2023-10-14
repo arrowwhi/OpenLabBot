@@ -1,23 +1,22 @@
 # from sqlalchemy import create_engine
 
 import asyncio
+# import configparser
 import logging
 from aiogram import Bot, Dispatcher
-# from aiogram.filters.command import Command
-# import database
-# from helpers import make_row_keyboard
 import registration
 import start_router
 
-from database import db
+from database import db, config
 import victorine
 
 
 async def main():
+    token = config.get('Telegram', 'token')
     # Включаем логирование, чтобы не пропустить важные сообщения
     logging.basicConfig(level=logging.INFO)
     # Объект бота
-    bot = Bot(token="6492618024:AAGfSiD4qpHcR7ddJHObAo3IjOGktKvjZUk")
+    bot = Bot(token=token)
     # Диспетчер
     dp = Dispatcher()
 

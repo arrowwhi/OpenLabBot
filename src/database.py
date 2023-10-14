@@ -1,15 +1,13 @@
-# import time
 import asyncio
 from datetime import datetime
-from sqlalchemy import func, BigInteger
+from sqlalchemy import func, BigInteger, and_
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 # from sqlalchemy.orm import sessionmaker, selectinload
 # from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import declarative_base
-
-# from sqlalchemy.orm import sessionmaker
+import configparser
 
 
 # Создание базового класса для определения моделей
@@ -43,8 +41,6 @@ class User(Base):
     current_question = Column(Integer, default=1)
     # current_question = Column(Integer, ForeignKey('questions.in_group_id'), default=1)
     create_date = Column(DateTime, default=datetime.utcnow)
-
-
 
 
 # класс для записи вопросов
@@ -282,12 +278,12 @@ class Database:
         async with self.session() as session:
             try:
                 query = select(UserAnswer) \
-                    .filter(UserAnswer.user_id == tg_id, UserAnswer.is_correct == True)
+                    .filter(and_(UserAnswer.user_id == tg_id, UserAnswer.is_correct))
 
                 user_answers = await session.execute(query)
                 user_answers = user_answers.scalars().all()
 
-                total_score = sum(1 for answer in user_answers)
+                total_score = sum(1 for _ in user_answers)
 
                 query = select(UserCurrentQuestion) \
                     .filter(UserCurrentQuestion.tg_id == tg_id)
@@ -299,7 +295,7 @@ class Database:
                     user_current_question.final_score = total_score
 
                     await session.commit()
-                    return True
+                    return total_score
                 else:
                     return False
             except Exception as e:
@@ -307,7 +303,17 @@ class Database:
                 return False
 
 
-db = Database('postgres', '', 'localhost', '5432', 'open_lab')
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+# Получение значения из секции "Database"
+host = config.get('Database', 'host')
+port = config.get('Database', 'port')
+username = config.get('Database', 'username')
+password = config.get('Database', 'password')
+database = config.get('Database', 'database')
+
+db = Database(username, password, host, port, database)
 
 
 async def main():

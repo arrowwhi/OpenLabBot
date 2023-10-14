@@ -3,7 +3,7 @@ from typing import Union
 
 from aiogram import types
 from aiogram.filters import BaseFilter
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message  # , InlineKeyboardMarkup, InlineKeyboardButton
 
 from database import db
 
@@ -17,14 +17,12 @@ def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
     :return: объект реплай-клавиатуры
     """
     row = [KeyboardButton(text=item) for item in items]
-
     return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=False, one_time_keyboard=True)
 
 
 def make_inline_keyboard(buttons):
     """
     Генерирует инлайн-клавиатуру на основе переданных кнопок.
-
     :param buttons: Список кнопок в формате [("текст кнопки", "callback_data")]
     :return: Объект InlineKeyboardMarkup
     """

@@ -1,18 +1,21 @@
-from aiogram import Router, F, types
+from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-from aiogram.fsm.context import FSMContext
+# from aiogram.fsm.context import FSMContext
+# from aiogram.fsm.state import StatesGroup, State
+# from aiogram.fsm.context import FSMContext
 
 from helpers import make_row_keyboard
-from helpers import AdminFilter, admin_list
+from helpers import AdminFilter  # , admin_list
 
-from database import db
+from database import db, config
+
+numbers_str = config.get('Telegram', 'admin_id')
+admins = [int(num) for num in numbers_str.split(',')]
 
 start_router = Router()
 
 
-@start_router.message(AdminFilter(admins=[918616493]))
+@start_router.message(AdminFilter(admins=admins))
 async def start(message: types.Message):
     """
     Блокер
@@ -30,7 +33,4 @@ async def start(message: types.Message):
                              reply_markup=make_row_keyboard(['Начать викторину!']))
     else:
         await message.answer('Привет! Для начала нужно зарегистрироваться.',
-                         reply_markup=make_row_keyboard(['Регистрация']))
-
-
-
+                             reply_markup=make_row_keyboard(['Регистрация']))

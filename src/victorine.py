@@ -1,10 +1,10 @@
 from aiogram import Router, types
-from aiogram.filters import Command
+# from aiogram.filters import Command
 # from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 # from aiogram.fsm.context import FSMContext
 
-from helpers import make_inline_keyboard
+from helpers import make_inline_keyboard, make_row_keyboard
 
 from database import db
 
@@ -27,6 +27,8 @@ class Victorine:
         self.current_group = None
         self.question_id = None
         self.group = None
+        self.finished = False
+        self.total_score = 0
 
     async def initialize(self):
         user = await db.get_user_current_question(self.user_id)
@@ -34,6 +36,8 @@ class Victorine:
         if user:
             self.current_group = user.current_group
             self.question_id = user.current_question
+            self.finished = user.is_completed
+            self.total_score = user.final_score
         else:
             self.current_group = 1
             self.question_id = 1
@@ -52,7 +56,8 @@ class Victorine:
                 self.questions_count = await db.count_questions_in_group(self.current_group)
             else:
                 print('Викторина закончена')
-                db.update_user_current_question_complete(self.user_id)
+                self.total_score = await db.update_user_current_question_complete(self.user_id)
+                self.finished = True
                 return None
         await db.update_user_current_question(self.user_id, self.question_id, self.current_group)
         await self.get_next_question()
@@ -83,12 +88,19 @@ users_params = {}
 victorine_router = Router()
 
 
-@victorine_router.message(lambda message: message.text == 'Начать викторину!' or Command('victorine'))
+@victorine_router.message(lambda message: message.text == 'Начать викторину!')
 async def get_question(message: types.Message):
     user_id = message.from_user.id
+
     if users_params.get(user_id) is None:
         users_params[user_id] = Victorine(user_id)
         await users_params[user_id].initialize()
+
+    if users_params[user_id].finished:
+        await message.answer('Викторина закончена!',
+                             reply_markup=make_row_keyboard(['Показать результаты']))
+        return
+
     await users_params[user_id].get_next_question()
     answer_texts = users_params[user_id].show_answers_text()
     users_params[user_id].answer_texts = answer_texts
@@ -118,10 +130,28 @@ async def process_callback(callback_query: types.CallbackQuery):
         else:
             reply += 'Неверно:(\n\n'
         await callback_query.message.edit_text(reply, reply_markup=make_inline_keyboard([]))
-        await callback_query.message.answer('Нажми "Далее", чтобы продолжить')
+        await callback_query.message.answer('Следующий вопрос:')
+        if users_params[user_id].finished:
+            await callback_query.message.answer('Викторина закончена!',
+                                                reply_markup=make_row_keyboard(['Показать результаты']))
+            return
         await users_params[user_id].get_question_number()
         await callback_query.message.answer(users_params[user_id].show_question(),
                                             reply_markup=make_inline_keyboard(
                                                 users_params[user_id].show_answers_text()))
     else:
         await callback_query.answer('Что-то пошло не так')
+
+
+@victorine_router.message(lambda message: message.text == 'Показать результаты')
+async def show_results(message: types.Message):
+    user_id = message.from_user.id
+    if users_params.get(user_id) is None:
+        await message.answer('Вы ещё не начали викторину!')
+        return
+    if users_params[user_id].finished:
+        await message.answer('Викторина закончена!')
+        await message.answer(f'Ваш результат: {users_params[user_id].total_score} баллов')
+        return
+    await message.answer('Вы ещё не закончили викторину!')
+    return
