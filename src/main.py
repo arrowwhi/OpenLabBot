@@ -20,7 +20,7 @@ async def main():
     # Диспетчер
     dp = Dispatcher()
 
-    await db.create_tables()
+    # await db.create_tables()
     db.all_users = await db.get_all_users()
 
     # Регистрируем обработчики

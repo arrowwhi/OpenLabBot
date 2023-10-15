@@ -37,10 +37,10 @@ def make_inline_keyboard(buttons):
 
 
 class AdminFilter(BaseFilter):
-    def __init__(self, admins: Union[str, list]):  # [2]
+    def __init__(self, admins: Union[str, list]):
         self.admin_list = admins
 
-    async def __call__(self, message: Message) -> bool:  # [3]
+    async def __call__(self, message: Message) -> bool:
         if isinstance(self.admin_list, str):
             return not message.from_user.id != self.admin_list
         else:
@@ -48,10 +48,10 @@ class AdminFilter(BaseFilter):
 
 
 class VictorineFilter(BaseFilter):
-    def __init__(self):  # [2]
+    def __init__(self):
         pass
 
-    async def __call__(self, message: Message) -> bool:  # [3]
+    async def __call__(self, message: Message) -> bool:
         user = await db.get_user_by_tg_id(message.from_user.id)
         if user and message.text == 'Начать викторину!':
             return True

@@ -37,9 +37,6 @@ class User(Base):
     gender = Column(String, nullable=True)
     education = Column(String, nullable=False)
     edu_sector = Column(String, nullable=True)
-    current_group = Column(Integer, ForeignKey('question_groups.id'), default=1)
-    current_question = Column(Integer, default=1)
-    # current_question = Column(Integer, ForeignKey('questions.in_group_id'), default=1)
     create_date = Column(DateTime, default=datetime.utcnow)
 
 
@@ -60,6 +57,7 @@ class Answer(Base):
     id = Column(Integer, primary_key=True)
     question_id = Column(Integer, ForeignKey('questions.id'))
     answer_text = Column(String)
+    answer_description = Column(String)
     is_correct = Column(Boolean)
 
 
@@ -74,6 +72,7 @@ class UserAnswer(Base):
     is_correct = Column(Boolean)
 
 
+# Класс для отслеживания текущего вопроса пользователя
 class UserCurrentQuestion(Base):
     __tablename__ = 'user_current_question'
 
@@ -83,7 +82,7 @@ class UserCurrentQuestion(Base):
     is_completed = Column(Boolean, default=False)
     final_score = Column(Integer, default=0)
 
-
+# Класс для работы с базой данных
 class Database:
     def __init__(self, login, password, host, port, db_name):
         # Подключение базы данных
@@ -95,12 +94,14 @@ class Database:
 
         self.all_users = []
 
+    # Создание таблиц в базе данных
     async def create_tables(self):
         print("ok")
         # Base.metadata.create_all(self.engine)
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+    # Получение списка всех пользователей
     async def get_all_users(self):
         async with self.session() as session:
             try:
@@ -112,6 +113,7 @@ class Database:
                 print(f"An error occurred while fetching all users: {e}")
                 return []
 
+    # Добавление нового пользователя в базу данных
     async def add_user(self, tg_id, name, age, gender, education, edu_sector):
         # Создаем объект User для вставки
         new_user = User(
@@ -121,7 +123,6 @@ class Database:
             gender=gender,
             education=education,
             edu_sector=edu_sector,
-            current_question=None,
             create_date=datetime.utcnow()
         )
 
@@ -130,6 +131,7 @@ class Database:
             await session.commit()
         self.all_users.append(tg_id)
 
+    # Добавление ответа пользователя на вопрос в базу данных
     async def add_user_answer(self, user_id, question_id, answer_id, is_correct):
         new_answer = UserAnswer(
             user_id=user_id,
@@ -142,6 +144,7 @@ class Database:
             session.add(new_answer)
             await session.commit()
 
+        # Получение вопроса по заданным параметрам
     async def get_question(self, question_group_id, question_id):
         async with (self.session() as session):
             try:
@@ -153,7 +156,7 @@ class Database:
                     return {
                         'id': question.id,
                         'in_group_id': question.in_group_id,
-                        'question_text': question.question,
+                        'question_text': question.question.replace('n', "\n"),
                         'group_id': question.group_id
                     }
                 else:
@@ -163,6 +166,7 @@ class Database:
                 print(f"An error occurred while fetching the question: {e}")
                 return None
 
+    # Получение ответов на вопрос из базы данных
     async def get_answers(self, question_id):
         async with (self.session() as session):
             try:
@@ -183,6 +187,7 @@ class Database:
                 print(f"An error occurred while fetching the answers: {e}")
                 return None
 
+    # Получение количества групп вопросов
     async def get_groups_count(self):
         async with self.session() as session:
             try:
@@ -194,6 +199,7 @@ class Database:
                 print(f"An error occurred while counting groups: {e}")
                 return None
 
+    # Подсчет количества вопросов в указанной группе
     async def count_questions_in_group(self, group_id):
         async with self.session() as session:
             try:
@@ -206,6 +212,7 @@ class Database:
                 print(f"An error occurred while counting questions in the group: {e}")
                 return None
 
+    # Получение пользователя по Telegram ID
     async def get_user_by_tg_id(self, tg_id):
         async with self.session() as session:
             try:
@@ -218,6 +225,7 @@ class Database:
                 print(f"An error occurred while fetching the user by tg_id: {e}")
                 return None
 
+    # Добавление информации о текущем вопросе пользователя
     async def add_user_current_question(self, tg_id):
         # Создаем объект UserCurrentQuestion для вставки
         new_user_current_question = UserCurrentQuestion(
@@ -230,6 +238,7 @@ class Database:
             session.add(new_user_current_question)
             await session.commit()
 
+    # Получение информации о текущем вопросе пользователя
     async def get_user_current_question(self, tg_id):
         async with self.session() as session:
             try:
@@ -242,6 +251,7 @@ class Database:
                 print(f"An error occurred while fetching user_current_question by tg_id: {e}")
                 return None
 
+    # Получение информации о группе вопросов
     async def get_group(self, group_id):
         async with self.session() as session:
             try:
@@ -254,6 +264,7 @@ class Database:
                 print(f"An error occurred while fetching the group: {e}")
                 return None
 
+    # Обновление информации о текущем вопросе пользователя
     async def update_user_current_question(self, tg_id, question_id, group_id):
         async with self.session() as session:
             try:
@@ -274,6 +285,7 @@ class Database:
                 print(f"An error occurred while updating user_current_question: {e}")
                 return False
 
+    # Обновление информации о завершении опроса пользователя
     async def update_user_current_question_complete(self, tg_id):
         async with self.session() as session:
             try:

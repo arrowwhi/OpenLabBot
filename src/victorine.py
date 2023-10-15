@@ -131,11 +131,11 @@ async def process_callback(callback_query: types.CallbackQuery):
             reply += 'Неверно:(\n\n'
         await callback_query.message.edit_text(reply, reply_markup=make_inline_keyboard([]))
         await callback_query.message.answer('Следующий вопрос:')
+        await users_params[user_id].get_question_number()
         if users_params[user_id].finished:
             await callback_query.message.answer('Викторина закончена!',
                                                 reply_markup=make_row_keyboard(['Показать результаты']))
             return
-        await users_params[user_id].get_question_number()
         await callback_query.message.answer(users_params[user_id].show_question(),
                                             reply_markup=make_inline_keyboard(
                                                 users_params[user_id].show_answers_text()))
