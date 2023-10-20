@@ -1,7 +1,6 @@
-# from sqlalchemy import create_engine
 
 import asyncio
-# import configparser
+
 import logging
 from aiogram import Bot, Dispatcher
 import registration

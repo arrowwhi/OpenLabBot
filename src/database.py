@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from sqlalchemy import func, BigInteger, and_
+from sqlalchemy import func, BigInteger, and_, Text
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -14,7 +14,7 @@ import configparser
 Base = declarative_base()
 
 
-#       Определение моделей для таблиц
+# Определение моделей для таблиц
 
 
 # класс для записи групп вопросов
@@ -48,6 +48,7 @@ class Question(Base):
     in_group_id = Column(Integer)
     question = Column(String)
     group_id = Column(Integer, ForeignKey('question_groups.id'))
+    answer_description = Column(Text, nullable=True,default=None)
 
 
 # класс для записи ответов
@@ -57,7 +58,6 @@ class Answer(Base):
     id = Column(Integer, primary_key=True)
     question_id = Column(Integer, ForeignKey('questions.id'))
     answer_text = Column(String)
-    answer_description = Column(String)
     is_correct = Column(Boolean)
 
 
@@ -157,7 +157,8 @@ class Database:
                         'id': question.id,
                         'in_group_id': question.in_group_id,
                         'question_text': question.question.replace('n', "\n"),
-                        'group_id': question.group_id
+                        'group_id': question.group_id,
+                        'answer_description': question.answer_description
                     }
                 else:
                     return None

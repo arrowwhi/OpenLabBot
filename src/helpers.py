@@ -1,9 +1,11 @@
 # from abc import ABC
-from typing import Union
+from typing import Union, Optional
 
 from aiogram import types
 from aiogram.filters import BaseFilter
+from aiogram.filters.callback_data import CallbackData
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message  # , InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from database import db
 
@@ -56,3 +58,73 @@ class VictorineFilter(BaseFilter):
         if user and message.text == 'Начать викторину!':
             return True
         return False
+
+
+# ['Редактировать имя',
+# 'Редактировать пол',
+# 'Редактировать возраст',
+# 'Редактировать образование',
+# 'Редактировать образовательную сферу',
+# 'Подтвердить']
+
+class NumbersCallbackFactory(CallbackData, prefix="fabnum"):
+    action: str
+    value: Optional[int] = None
+
+
+def get_confirm_pi_keyboard(sf=False):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅Подтвердить", callback_data=NumbersCallbackFactory(action="confirm_pi")
+    )
+    builder.button(
+        text="Редактировать имя", callback_data=NumbersCallbackFactory(action="change_pi", value=1)
+    )
+    builder.button(
+        text="Редактировать пол", callback_data=NumbersCallbackFactory(action="change_pi", value=2)
+    )
+    builder.button(
+        text="Редактировать возраст", callback_data=NumbersCallbackFactory(action="change_pi", value=3)
+    )
+    builder.button(
+        text="Редактировать образование", callback_data=NumbersCallbackFactory(action="change_pi", value=4)
+    )
+    if sf:
+        builder.button(
+            text="Редактировать образовательную сферу",
+            callback_data=NumbersCallbackFactory(action="change_pi", value=5)
+        )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def get_confirm_answer_keyboard(flag = True):
+    builder = InlineKeyboardBuilder()
+    if flag:
+        builder.button(
+            text='Объяснение',
+            callback_data='explanation'
+        )
+    builder.button(
+        text='Следующий вопрос',
+        callback_data='next_question'
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def get_resend_question():
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text='Отправить вопрос ещё раз',
+        callback_data='resend_question'
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def get_next_question_button():
+    row = KeyboardButton(text='Следующий вопрос')
+    return ReplyKeyboardMarkup(keyboard=[[row]], resize_keyboard=False, one_time_keyboard=True)
+
+

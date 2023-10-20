@@ -4,30 +4,41 @@ from aiogram import Router, F, types
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
-from helpers import make_row_keyboard
+from helpers import make_row_keyboard, get_confirm_pi_keyboard, NumbersCallbackFactory
 from database import db
 
 
+# Определение класса StatesGroup для управления состояниями регистрации пользователя.
 class Registration(StatesGroup):
-    """
-    Класс состояний для регистрации
-    """
-    waiting_for_name = State()
-    waiting_for_gender = State()
-    waiting_for_age = State()
-    waiting_for_education = State()
-    waiting_for_edu_sector = State()
-    waiting_for_confirm = State()
+    waiting_for_name = State()  # Ожидание имени
+    waiting_for_gender = State()  # Ожидание пола
+    waiting_for_age = State()  # Ожидание возраста
+    waiting_for_education = State()  # Ожидание уровня образования
+    waiting_for_edu_sector = State()  # Ожидание образовательной сферы
+    waiting_for_confirm = State()  # Ожидание подтверждения
 
 
+# Создание экземпляра роутера для управления регистрацией пользователей.
 reg_router = Router()
 
 
+# Обработчик для начала процесса регистрации при отправке сообщения "регистрация".
 @reg_router.message(F.text.lower() == 'регистрация')
 async def start_registration(message: types.Message, state: FSMContext):
     await message.answer('Пожалуйста, введи свои имя и фамилию.', reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(Registration.waiting_for_name)
 
+
+# Обработчики для каждого этапа процесса регистрации:
+# - process_name: Получение имени пользователя и переход к следующему этапу.
+# - process_gender: Получение пола пользователя и переход к следующему этапу.
+# - process_age: Получение возраста пользователя и переход к следующему этапу.
+# - process_education: Получение уровня образования пользователя и переход к следующему этапу.
+# - process_edu_sector: Получение образовательной сферы и завершение регистрации.
+# - process_confirm: Подтверждение регистрации или предложение отредактировать данные.
+# Все эти обработчики промежуточно сохраняют данные в контексте состояния FSMContext.
+# В конце успешной регистрации данные отправляются в базу данных.
+# В случае запроса на редактирование, происходит переход к соответствующему этапу регистрации.
 
 @reg_router.message(Registration.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
@@ -55,6 +66,7 @@ async def process_gender(message: types.Message, state: FSMContext):
     await state.set_state(Registration.waiting_for_age)
 
 
+# Определение уровней образования в виде списка.
 education_level = ['Неоконченное среднее',
                    'Среднее',
                    'Неоконченное высшее',
@@ -65,7 +77,11 @@ education_level = ['Неоконченное среднее',
 @reg_router.message(Registration.waiting_for_age)
 async def process_age(message: types.Message, state: FSMContext):
     if not message.text.isdigit():
-        await message.answer('Пожалуйста, введи возраст цифрами.')
+        await message.answer('Пожалуйста, введите возраст цифрами.')
+        return
+    print(message.text)
+    if int(message.text) < 4 or int(message.text) > 100:
+        await message.answer('Пожалуйста, введите реальный возраст.')
         return
     await state.update_data(age=int(message.text))
     user_data = await state.get_data()
@@ -84,6 +100,7 @@ async def process_education(message: types.Message, state: FSMContext):
         return
     await state.update_data(education=message.text)
     if message.text == 'Неоконченное среднее' or message.text == 'Среднее':
+        await state.set_state(Registration.waiting_for_confirm)
         await process_edu_sector(message, state)
         return
     user_data = await state.get_data()
@@ -98,56 +115,59 @@ async def process_education(message: types.Message, state: FSMContext):
 async def process_edu_sector(message: types.Message, state: FSMContext):
     await state.update_data(edu_sector=message.text)
     await state.update_data(finished=True)
+    sf = False
     user_data = await state.get_data()
-    ans = 'Проверь, правильно ли ты ввел свои данные:\n' \
+    ans = 'Проверь, правильно ли ты ввел свои данные:\n\n' \
           f'Имя: {user_data["name"]}\n' \
           f'Пол: {user_data["gender"]}\n' \
           f'Возраст: {user_data["age"]} лет\n' \
           f'Образование: {user_data["education"]}\n'
     if user_data.get('edu_sector', False):
         ans += f'Образовательная сфера: {user_data["edu_sector"]}'
-    await message.answer(ans)
-    await message.answer('Если всё верно, нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
-                         reply_markup=make_row_keyboard(['Редактировать имя',
-                                                         'Редактировать пол',
-                                                         'Редактировать возраст',
-                                                         'Редактировать образование',
-                                                         'Редактировать образовательную сферу',
-                                                         'Подтвердить']))
+        sf = True
+    await message.answer(ans + '\n\n'+'Если всё верно, нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
+                         reply_markup=get_confirm_pi_keyboard(sf))
     await state.set_state(Registration.waiting_for_confirm)
 
 
-@reg_router.message(Registration.waiting_for_confirm)
-async def process_confirm(message: types.Message, state: FSMContext):
-    if message.text == 'Подтвердить':
+@reg_router.callback_query(NumbersCallbackFactory.filter())
+async def process_confirm(callback: types.CallbackQuery,
+                          callback_data: NumbersCallbackFactory, state: FSMContext):
+    if callback_data.action == 'confirm_pi':
         user_data = await state.get_data()
         await db.add_user(
-            tg_id=message.from_user.id,
+            tg_id=callback.from_user.id,
             name=user_data['name'],
             age=user_data['age'],
             gender=user_data['gender'],
             education=user_data['education'],
             edu_sector=user_data.get('edu_sector', None)
         )
-        await message.answer('Спасибо за регистрацию!', reply_markup=make_row_keyboard(['Начать викторину!']))
+        await callback.answer('Успешно!')
+        await callback.message.answer('Давай начнем!', reply_markup=make_row_keyboard(['Начать викторину!']))
         await state.clear()
-    elif message.text == 'Редактировать имя':
-        await state.set_state(Registration.waiting_for_name)
-        await message.answer('Пожалуйста, введи свое имя и фамилию.')
-    elif message.text == 'Редактировать пол':
-        await state.set_state(Registration.waiting_for_gender)
-        await message.answer('Выбери свой пол.',
-                             reply_markup=make_row_keyboard(['Мужской', 'Женский', 'Другой']))
-    elif message.text == 'Редактировать возраст':
-        await state.set_state(Registration.waiting_for_age)
-        await message.answer('Введи свой возраст.')
-    elif message.text == 'Редактировать образование':
-        await state.set_state(Registration.waiting_for_education)
-        await message.answer('Выбери свой уровень образования.',
-                             reply_markup=make_row_keyboard(education_level))
-    elif message.text == 'Редактировать образовательную сферу':
-        await state.set_state(Registration.waiting_for_edu_sector)
-        await message.answer('Введи свою образовательную сферу.')
+    elif callback_data.action == 'change_pi':
+        await callback.answer()
+        await callback.message.edit_text(callback.message.text.split('\n\n')[1])
+        if callback_data.value == 1:
+            await state.set_state(Registration.waiting_for_name)
+            await callback.message.answer('Пожалуйста, введи свое имя и фамилию.')
+        elif callback_data.value == 2:
+            await state.set_state(Registration.waiting_for_gender)
+            await callback.message.answer('Выбери свой пол.',
+                                          reply_markup=make_row_keyboard(['Мужской', 'Женский', 'Другой']))
+        elif callback_data.value == 3:
+            await state.set_state(Registration.waiting_for_age)
+            await callback.message.answer('Введи свой возраст.')
+        elif callback_data.value == 4:
+            await state.set_state(Registration.waiting_for_education)
+            await callback.message.answer('Выбери свой уровень образования.',
+                                          reply_markup=make_row_keyboard(education_level))
+        elif callback_data.value == 5:
+            await state.set_state(Registration.waiting_for_edu_sector)
+            await callback.message.answer('Введи свою образовательную сферу.')
+        else:
+            await callback.answer('Ой, вы попали не туда1...')
     else:
-        await message.answer('Пожалуйста, выбери один из предложенных вариантов.')
+        await callback.answer('Ой, вы попали не туда2...')
         return
