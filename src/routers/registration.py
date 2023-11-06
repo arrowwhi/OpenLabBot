@@ -1,11 +1,13 @@
+import asyncio
+
 from aiogram import Router, F, types
 # from aiogram.filters import Command
 # from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 
-from helpers import make_row_keyboard, get_confirm_pi_keyboard, NumbersCallbackFactory
-from database import db
+from src.helpers.helpers import make_row_keyboard, get_confirm_pi_keyboard, NumbersCallbackFactory
+from src.database.database import db
 
 
 # Определение класса StatesGroup для управления состояниями регистрации пользователя.
@@ -47,7 +49,7 @@ async def process_name(message: types.Message, state: FSMContext):
     if user_data.get('finished', False):
         await process_edu_sector(message, state)
         return
-    await message.answer('Отлично! Теперь выбери свой пол.',
+    await message.answer('Супер! Теперь выбери свой пол.',
                          reply_markup=make_row_keyboard(['Мужской', 'Женский', 'Другой']))
     await state.set_state(Registration.waiting_for_gender)
 
@@ -88,7 +90,7 @@ async def process_age(message: types.Message, state: FSMContext):
     if user_data.get('finished', False):
         await process_edu_sector(message, state)
         return
-    await message.answer('Отлично! Теперь выбери свой уровень образования.',
+    await message.answer('Потрясающе! Теперь выбери свой уровень образования.',
                          reply_markup=make_row_keyboard(education_level))
     await state.set_state(Registration.waiting_for_education)
 
@@ -100,14 +102,16 @@ async def process_education(message: types.Message, state: FSMContext):
         return
     await state.update_data(education=message.text)
     if message.text == 'Неоконченное среднее' or message.text == 'Среднее':
+        await state.update_data(edu_sphere=False)
         await state.set_state(Registration.waiting_for_confirm)
         await process_edu_sector(message, state)
         return
+    await state.update_data(edu_sphere=True)
     user_data = await state.get_data()
     if user_data.get('finished', False):
         await process_edu_sector(message, state)
         return
-    await message.answer('Отлично! Теперь введи свою образовательную сферу.', reply_markup=types.ReplyKeyboardRemove())
+    await message.answer('Последнее - веди свою сферу образования.', reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(Registration.waiting_for_edu_sector)
 
 
@@ -122,7 +126,8 @@ async def process_edu_sector(message: types.Message, state: FSMContext):
           f'Пол: {user_data["gender"]}\n' \
           f'Возраст: {user_data["age"]} лет\n' \
           f'Образование: {user_data["education"]}\n'
-    if user_data.get('edu_sector', False):
+    if user_data.get('edu_sphere', False):
+        print(user_data.get('edu_sector', False))
         ans += f'Образовательная сфера: {user_data["edu_sector"]}'
         sf = True
     await message.answer(ans + '\n\n'+'Если всё верно, нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
@@ -135,14 +140,18 @@ async def process_confirm(callback: types.CallbackQuery,
                           callback_data: NumbersCallbackFactory, state: FSMContext):
     if callback_data.action == 'confirm_pi':
         user_data = await state.get_data()
-        await db.add_user(
+        task = asyncio.create_task(db.add_user(
             tg_id=callback.from_user.id,
             name=user_data['name'],
             age=user_data['age'],
             gender=user_data['gender'],
             education=user_data['education'],
             edu_sector=user_data.get('edu_sector', None)
-        )
+        ))
+        text = callback.message.text.split('\n\n')[1]
+
+        await callback.message.edit_text("Ваши данные:\n\n" + text)
+        # await callback.message.edit_reply_markup()
         await callback.answer('Успешно!')
         await callback.message.answer('Давай начнем!', reply_markup=make_row_keyboard(['Начать викторину!']))
         await state.clear()
@@ -167,7 +176,7 @@ async def process_confirm(callback: types.CallbackQuery,
             await state.set_state(Registration.waiting_for_edu_sector)
             await callback.message.answer('Введи свою образовательную сферу.')
         else:
-            await callback.answer('Ой, вы попали не туда1...')
+            await callback.answer('Ой, вы попали не туда...')
     else:
-        await callback.answer('Ой, вы попали не туда2...')
+        await callback.answer('Ой, вы попали не туда...')
         return

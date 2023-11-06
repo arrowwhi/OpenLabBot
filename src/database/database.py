@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from sqlalchemy import func, BigInteger, and_, Text
+from sqlalchemy import func, BigInteger, and_, Text, delete, ColumnElement, text
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 # from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import declarative_base
 import configparser
-
 
 # Создание базового класса для определения моделей
 Base = declarative_base()
@@ -48,7 +47,7 @@ class Question(Base):
     in_group_id = Column(Integer)
     question = Column(String)
     group_id = Column(Integer, ForeignKey('question_groups.id'))
-    answer_description = Column(Text, nullable=True,default=None)
+    answer_description = Column(Text, nullable=True, default=None)
 
 
 # класс для записи ответов
@@ -81,6 +80,7 @@ class UserCurrentQuestion(Base):
     current_question = Column(Integer, default=1)
     is_completed = Column(Boolean, default=False)
     final_score = Column(Integer, default=0)
+
 
 # Класс для работы с базой данных
 class Database:
@@ -145,6 +145,7 @@ class Database:
             await session.commit()
 
         # Получение вопроса по заданным параметрам
+
     async def get_question(self, question_group_id, question_id):
         async with (self.session() as session):
             try:
@@ -313,6 +314,28 @@ class Database:
                     return False
             except Exception as e:
                 print(f"An error occurred while updating UserCurrentQuestion: {e}")
+                return False
+
+    # Обнуление пользователя
+    from sqlalchemy import delete
+
+    from sqlalchemy import delete
+
+    async def reset_user(self, tg_id):
+        query1 = text(f"delete from user_current_question where tg_id={tg_id};")
+        query2 = text(f"delete from users_answers where user_id={tg_id};")
+        query3 = text(f"delete from users where tg_id={tg_id};")
+
+        async with self.session() as session:
+            try:
+                await session.execute(query1)
+                await session.execute(query2)
+                await session.execute(query3)
+
+                await session.commit()
+                return True
+            except Exception as e:
+                print(f"An error occurred while resetting user: {e}")
                 return False
 
 

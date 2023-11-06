@@ -1,13 +1,8 @@
+import asyncio
+
 from aiogram import Router, types
-# from aiogram.filters import Command
-# from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
-# from aiogram.fsm.context import FSMContext
-
-from helpers import make_inline_keyboard, make_row_keyboard, get_confirm_answer_keyboard, get_next_question_button, \
-    get_resend_question
-
-from database import db
+from src.helpers.helpers import make_row_keyboard, get_confirm_answer_keyboard
+from src.database.database import db
 
 
 class Victorine:
@@ -24,10 +19,10 @@ class Victorine:
         self.total_score = 0
         self.message = None
         self.is_answered = False
+        self.question_description = ''
 
     async def initialize(self):
         user = await db.get_user_current_question(self.user_id)
-        print('\n\nuser:\n\n', user)
         if user:
             self.current_group = user.current_group
             self.question_id = user.current_question
@@ -93,9 +88,9 @@ class Victorine:
         return self.answers[number]
 
 
-users_params = {}
-
 victorine_router = Router()
+
+users_params = {}
 
 
 @victorine_router.message(lambda message: message.text == 'Начать викторину!')
@@ -130,57 +125,18 @@ async def process_callback(callback: types.CallbackQuery):
         await callback.message.delete()
         await send_next_question_message(user_id=callback.from_user.id)
     if callback.data == 'explanation':
-        await callback.message.answer(users_params[callback.from_user.id].question['answer_description'],
-                                      reply_markup=get_confirm_answer_keyboard(False))
+        q_id = users_params[callback.from_user.id].question_id == users_params[callback.from_user.id].questions_count
+        await callback.message.answer(users_params[callback.from_user.id].question_description,
+                                      reply_markup=get_confirm_answer_keyboard(False, q_id))
         return
     elif callback.data == 'next_question':
-        await users_params[callback.from_user.id].get_question_number()
+        # await users_params[callback.from_user.id].get_question_number()
         if users_params[callback.from_user.id].finished:
             await callback.message.answer('Викторина закончена!',
                                           reply_markup=make_row_keyboard(['Показать результаты']))
             return
         await send_next_question_message(user_id=callback.from_user.id)
         return
-
-    # user_id = callback.from_user.id
-    # ans = users_params[user_id].get_choice(int(callback_query.data))
-    # if ans:
-    #     await callback_query.answer()
-    #     reply = callback_query.message.text
-    #     await db.add_user_answer(user_id, ans['question_id'], ans['id'], ans['is_correct'])
-    #     reply += ('\n\nВы ответили:\n' + ans['answer_text'] + '\n\n')
-    #     if ans['is_correct']:
-    #         reply += 'Верно!\n\n'
-    #     else:
-    #         reply += 'Неверно:(\n\n'
-    #     await callback_query.message.edit_text(reply, reply_markup=make_inline_keyboard([]))
-    #     await callback_query.message.answer('Следующий вопрос:')
-    #     await users_params[user_id].get_question_number()
-    #     if users_params[user_id].finished:
-    #         await callback_query.message.answer('Викторина закончена!',
-    #                                             reply_markup=make_row_keyboard(['Показать результаты']))
-    #         return
-    #     await callback_query.message.answer(users_params[user_id].show_question(),
-    #                                         reply_markup=make_inline_keyboard(
-    #                                             users_params[user_id].show_answers_text_id_with_callback()))
-    # else:
-    #     await callback_query.answer('Что-то пошло не так')
-
-
-@victorine_router.message(lambda message: message.text == 'Следующий вопрос')
-async def get_question(message: types.Message):
-    if users_params.get(message.from_user.id) is None:
-        await message.answer('Вы ещё не начали викторину!')
-        return
-    if not users_params[message.from_user.id].is_answered:
-        await message.answer('Вы ещё не ответили на предыдущий вопрос!', reply_markup=get_resend_question())
-        return
-    await users_params[message.from_user.id].get_question_number()
-    if users_params[message.from_user.id].finished:
-        await message.answer('Викторина закончена!',
-                             reply_markup=make_row_keyboard(['Показать результаты']))
-        return
-    await send_next_question_message(message)
 
 
 @victorine_router.poll_answer()
@@ -193,14 +149,23 @@ async def poll_answer(poll_ans: types.PollAnswer):
     print(ans_id)
     ans = users_params[user_id].get_choice(ans_id)
     print(ans)
+    users_params[user_id].question_description = users_params[user_id].question['answer_description']
     if ans['is_correct']:
         reply = 'Верно!'
     else:
         reply = 'Неверно:(\n'
         reply += 'Правильный ответ: ' + users_params[user_id].get_choice_by_number(
             users_params[user_id].get_right_answer_number())['answer_text']
-    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard())
-    await db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct'])
+    q_id = users_params[user_id].question_id == users_params[user_id].questions_count
+    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(True, q_id))
+    try:
+        await db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct'])
+    except Exception as e:
+        print(e)
+    try:
+        await users_params[user_id].get_question_number()
+    except Exception as e:
+        print(e)
 
 
 @victorine_router.message(lambda message: message.text == 'Показать результаты')
@@ -222,10 +187,11 @@ async def send_next_question_message(message: types.Message = None, user_id=None
         user_id = message.from_user.id
     if not message:
         message = users_params[user_id].message
+    if users_params[user_id].question_id == users_params[user_id].questions_count:
+        await message.answer(users_params[user_id].group.group_preview)
+        await asyncio.sleep(1)
     await message.answer_poll(question=users_params[user_id].show_question(),
                               options=users_params[user_id].show_answers_text(),
                               type='quiz',
                               correct_option_id=users_params[user_id].get_right_answer_number(),
-                              is_anonymous=False,
-                              reply_markup=get_next_question_button())
-
+                              is_anonymous=False)

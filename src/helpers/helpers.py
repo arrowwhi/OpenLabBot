@@ -1,4 +1,3 @@
-# from abc import ABC
 from typing import Union, Optional
 
 from aiogram import types
@@ -7,9 +6,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Message  # , InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database import db
-
-admin_list = [918616493]
+from src.database.database import db
 
 
 def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
@@ -18,8 +15,8 @@ def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
     :param items: список текстов для кнопок
     :return: объект реплай-клавиатуры
     """
-    row = [KeyboardButton(text=item) for item in items]
-    return ReplyKeyboardMarkup(keyboard=[row], resize_keyboard=False, one_time_keyboard=True)
+    row = [[KeyboardButton(text=item)] for item in items]
+    return ReplyKeyboardMarkup(keyboard=row, resize_keyboard=False, one_time_keyboard=True)
 
 
 def make_inline_keyboard(buttons):
@@ -89,6 +86,7 @@ def get_confirm_pi_keyboard(sf=False):
     builder.button(
         text="Редактировать образование", callback_data=NumbersCallbackFactory(action="change_pi", value=4)
     )
+    print("SF = ", sf)
     if sf:
         builder.button(
             text="Редактировать образовательную сферу",
@@ -98,15 +96,19 @@ def get_confirm_pi_keyboard(sf=False):
     return builder.as_markup()
 
 
-def get_confirm_answer_keyboard(flag = True):
+def get_confirm_answer_keyboard(flag=True, next_group=False):
     builder = InlineKeyboardBuilder()
     if flag:
         builder.button(
             text='Объяснение',
             callback_data='explanation'
         )
+    if next_group:
+        txt = 'Следующая группа'
+    else:
+        txt = 'Следующий вопрос'
     builder.button(
-        text='Следующий вопрос',
+        text=txt,
         callback_data='next_question'
     )
     builder.adjust(2)
@@ -126,5 +128,3 @@ def get_resend_question():
 def get_next_question_button():
     row = KeyboardButton(text='Следующий вопрос')
     return ReplyKeyboardMarkup(keyboard=[[row]], resize_keyboard=False, one_time_keyboard=True)
-
-

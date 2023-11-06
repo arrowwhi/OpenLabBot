@@ -3,11 +3,9 @@ import asyncio
 
 import logging
 from aiogram import Bot, Dispatcher
-import registration
-import start_router
 
-from database import db, config
-import victorine
+from src.database.database import db, config
+from src.routers import victorine, registration, start_router
 
 
 async def main():
