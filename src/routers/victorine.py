@@ -193,6 +193,7 @@ async def show_results(message: types.Message):
         elif cnt <= 27:
             cnt = 27
         await message.answer(result_text[cnt])
+        await asyncio.sleep(3)
         await message.answer(f'Ваш результат: {users_params[user_id].total_score} \n\nЧтобы получить приз, покажите '
                              f'ваш код: \n{user_id}')
         return
