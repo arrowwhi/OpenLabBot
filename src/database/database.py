@@ -69,6 +69,7 @@ class UserAnswer(Base):
     question_id = Column(Integer, ForeignKey('questions.id'))
     answer_id = Column(Integer, ForeignKey('answers.id'))
     is_correct = Column(Boolean)
+    text_answer = Column(String)
 
 
 # Класс для отслеживания текущего вопроса пользователя
@@ -336,10 +337,6 @@ class Database:
                 return False
 
     # Обнуление пользователя
-    from sqlalchemy import delete
-
-    from sqlalchemy import delete
-
     async def reset_user(self, tg_id):
         query1 = text(f"delete from user_current_question where tg_id={tg_id};")
         query2 = text(f"delete from users_answers where user_id={tg_id};")
@@ -356,6 +353,20 @@ class Database:
             except Exception as e:
                 print(f"An error occurred while resetting user: {e}")
                 return False
+
+    async def add_text_answer(self, user_id, question_id, is_correct, text_answer):
+        new_answer = UserAnswer(
+            user_id=user_id,
+            question_id=question_id,
+            is_correct=is_correct,
+            text_answer=text_answer
+        )
+
+        async with self.session() as session:
+            session.add(new_answer)
+            await session.commit()
+
+        # Получение вопроса по заданным параметрам
 
 
 config = configparser.ConfigParser()

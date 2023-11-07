@@ -115,6 +115,16 @@ def get_confirm_answer_keyboard(flag=True, next_group=False):
     return builder.as_markup()
 
 
+def get_final_kb():
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text='Завершить викторину',
+        callback_data='next_question'
+    )
+    builder.adjust(1)
+    return builder.as_markup()
+
+
 def get_resend_question():
     builder = InlineKeyboardBuilder()
     builder.button(

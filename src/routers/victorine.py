@@ -1,9 +1,16 @@
 import asyncio
 
 from aiogram import Router, types
-from src.helpers.helpers import make_row_keyboard, get_confirm_answer_keyboard
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
+
+from src.helpers.helpers import make_row_keyboard, get_confirm_answer_keyboard, get_final_kb
 from src.database.database import db
-from src.helpers.texts import result_text
+from src.helpers.texts import result_text, finish_message
+
+
+class TextAnswer(StatesGroup):
+    waiting_for_answer = State()
 
 
 class Victorine:
@@ -96,7 +103,7 @@ users_params = {}
 
 
 @victorine_router.message(lambda message: message.text == 'Начать викторину!')
-async def get_question(message: types.Message):
+async def get_question(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
 
     if users_params.get(user_id) is None:
@@ -104,7 +111,7 @@ async def get_question(message: types.Message):
         await users_params[user_id].initialize()
 
     if users_params[user_id].finished:
-        await message.answer('Викторина закончена!',
+        await message.answer(finish_message,
                              reply_markup=make_row_keyboard(['Показать результаты']))
         return
 
@@ -119,16 +126,16 @@ async def get_question(message: types.Message):
     #     await asyncio.sleep(1)
     #     await message.answer(users_params[user_id].group.group_preview)
     #     await asyncio.sleep(4)
-    await send_next_question_message(message)
+    await send_next_question_message(message, state=state)
 
 
 @victorine_router.callback_query()
-async def process_callback(callback: types.CallbackQuery):
+async def process_callback(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     await callback.message.edit_text(callback.message.text)
     if callback.data == 'resend_question':
         await callback.message.delete()
-        await send_next_question_message(user_id=callback.from_user.id)
+        await send_next_question_message(user_id=callback.from_user.id, state=state)
     if callback.data == 'explanation':
         q_id = users_params[callback.from_user.id].question_id == 1
         await callback.message.answer(users_params[callback.from_user.id].question_description,
@@ -137,10 +144,10 @@ async def process_callback(callback: types.CallbackQuery):
     elif callback.data == 'next_question':
         # await users_params[callback.from_user.id].get_question_number()
         if users_params[callback.from_user.id].finished:
-            await callback.message.answer('Викторина закончена!',
+            await callback.message.answer(finish_message,
                                           reply_markup=make_row_keyboard(['Показать результаты']))
             return
-        await send_next_question_message(user_id=callback.from_user.id)
+        await send_next_question_message(user_id=callback.from_user.id, state=state)
         return
 
 
@@ -164,10 +171,7 @@ async def poll_answer(poll_ans: types.PollAnswer):
     q_id = users_params[user_id].question_id == users_params[user_id].questions_count
     flag = True if users_params[user_id].question['answer_description'] else False
     await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(flag, q_id))
-    try:
-        await db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct'])
-    except Exception as e:
-        print(e)
+    asyncio.create_task(db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct']))
     try:
         await users_params[user_id].get_question_number()
     except Exception as e:
@@ -196,7 +200,30 @@ async def show_results(message: types.Message):
     return
 
 
-async def send_next_question_message(message: types.Message = None, user_id=None):
+@victorine_router.message(TextAnswer.waiting_for_answer)
+async def bonus_answer(message: types.Message, state: FSMContext):
+    right_answer = users_params[message.from_user.id].answers[0]
+    print(right_answer)
+    answer_text = right_answer['answer_text']
+    if message.text.lower() == answer_text:
+        reply = 'Верно!'
+    else:
+        reply = 'Неверно:(\n'
+        reply += 'Правильный ответ: ' + right_answer['answer_text']
+    asyncio.create_task(db.add_text_answer(
+        message.from_user.id,
+        right_answer['question_id'],
+        message.text.lower() == answer_text,
+        message.text
+    ))
+    await message.answer(reply, reply_markup=get_final_kb())
+    try:
+        await users_params[message.from_user.id].get_question_number()
+    except Exception as e:
+        print(e)
+
+
+async def send_next_question_message(message: types.Message = None, user_id=None, state=None):
     if not user_id:
         user_id = message.from_user.id
     if not message:
@@ -207,9 +234,13 @@ async def send_next_question_message(message: types.Message = None, user_id=None
         await message.answer(users_params[user_id].group.group_preview)
         await asyncio.sleep(4)
     await message.answer(users_params[user_id].show_question())
-    await asyncio.sleep(1)
-    await message.answer_poll(question='Выберите ответ:',
-                              options=users_params[user_id].show_answers_text(),
-                              type='quiz',
-                              correct_option_id=users_params[user_id].get_right_answer_number(),
-                              is_anonymous=False)
+    if len(users_params[user_id].show_answers_text()) == 1:
+        await state.set_state(TextAnswer.waiting_for_answer)
+        await message.answer('Ответ напишите в формате "С2Н5ОН"')
+    else:
+        await asyncio.sleep(1)
+        await message.answer_poll(question='Выберите ответ:',
+                                  options=users_params[user_id].show_answers_text(),
+                                  type='quiz',
+                                  correct_option_id=users_params[user_id].get_right_answer_number(),
+                                  is_anonymous=False)
