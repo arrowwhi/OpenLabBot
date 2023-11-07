@@ -23,6 +23,7 @@ start_router = Router()
 
 class AdminCommands(StatesGroup):
     reset = State()  # Ожидание имени
+    check = State()
 
 
 @start_router.message(AdminFilter(admins=admins))
@@ -58,6 +59,43 @@ async def reset(message: types.Message, state: FSMContext):
     await message.answer('Напишите id пользователя, которого хотите сбросить',
                          reply_markup=make_row_keyboard(['Свой', 'Отменить']))
     await state.set_state(AdminCommands.reset)
+
+
+@start_router.message(Command('check'))
+async def check_start(message: types.Message, state: FSMContext):
+    if message.from_user.id not in admins:
+        return
+    await message.answer('Напишите id пользователя, которого хотите проверить',
+                         reply_markup=make_row_keyboard(['Отменить']))
+    await state.set_state(AdminCommands.check)
+
+
+@start_router.message(AdminCommands.check)
+async def check_user(message: types.Message, state: FSMContext):
+    if message.from_user.id not in admins:
+        await state.clear()
+        return
+    if message.text == 'Отменить':
+        await message.answer('Отменено', reply_markup=types.ReplyKeyboardRemove())
+        await state.clear()
+        return
+    try:
+        user_id = int(message.text)
+    except ValueError:
+        await message.answer('Неверный id', reply_markup=types.ReplyKeyboardRemove())
+        await state.clear()
+        return
+    user_info = await db.get_user_result(user_id)
+    if user_info is None:
+        await message.answer('Пользователь не найден', reply_markup=types.ReplyKeyboardRemove())
+        await state.clear()
+        return
+    if not user_info['is_completed']:
+        await message.answer('Пользователь не закончил викторину')
+    final_score = user_info['final_score']
+    await message.answer(f'Результат пользователя {user_id}:\n'
+                         f'Правильных ответов: {final_score}\n',reply_markup=types.ReplyKeyboardRemove())
+    await state.clear()
 
 
 @start_router.message(AdminCommands.reset)

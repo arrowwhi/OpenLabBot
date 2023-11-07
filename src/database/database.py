@@ -96,7 +96,6 @@ class Database:
 
     # Создание таблиц в базе данных
     async def create_tables(self):
-        print("ok")
         # Base.metadata.create_all(self.engine)
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -183,6 +182,26 @@ class Database:
                         'answer_text': answer.answer_text,
                         'is_correct': answer.is_correct
                     } for answer in answers]
+                else:
+                    return None
+            except Exception as e:
+                print(f"An error occurred while fetching the answers: {e}")
+                return None
+
+    async def get_user_result(self, user_id):
+        print(user_id)
+        async with (self.session() as session):
+            try:
+                query = select(UserCurrentQuestion) \
+                    .filter(UserCurrentQuestion.tg_id == user_id)
+                answers = await session.execute(query)
+                answers = answers.scalars().first()
+                if answers:
+                    return {
+                        'id': answers.tg_id,
+                        'is_completed': answers.is_completed,
+                        'final_score': answers.final_score,
+                    }
                 else:
                     return None
             except Exception as e:

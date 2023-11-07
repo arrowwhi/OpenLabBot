@@ -3,6 +3,7 @@ import asyncio
 from aiogram import Router, types
 from src.helpers.helpers import make_row_keyboard, get_confirm_answer_keyboard
 from src.database.database import db
+from src.helpers.texts import result_text
 
 
 class Victorine:
@@ -44,6 +45,7 @@ class Victorine:
         else:
             if self.current_group < self.groups_count:
                 self.current_group += 1
+                self.group = await db.get_group(self.current_group)
                 self.question_id = 1
                 self.questions_count = await db.count_questions_in_group(self.current_group)
             else:
@@ -112,8 +114,11 @@ async def get_question(message: types.Message):
     users_params[user_id].answer_texts = answer_texts
     print(answer_texts)
     print(user_id)
-    if users_params[user_id].question_id == 1:
-        await message.answer(users_params[user_id].group.group_preview)
+    # if users_params[user_id].question_id == 1:
+    #     await message.answer(f'Раздел {users_params[user_id].group.id}: {users_params[user_id].group.group_name}')
+    #     await asyncio.sleep(1)
+    #     await message.answer(users_params[user_id].group.group_preview)
+    #     await asyncio.sleep(4)
     await send_next_question_message(message)
 
 
@@ -125,7 +130,7 @@ async def process_callback(callback: types.CallbackQuery):
         await callback.message.delete()
         await send_next_question_message(user_id=callback.from_user.id)
     if callback.data == 'explanation':
-        q_id = users_params[callback.from_user.id].question_id == users_params[callback.from_user.id].questions_count
+        q_id = users_params[callback.from_user.id].question_id == 1
         await callback.message.answer(users_params[callback.from_user.id].question_description,
                                       reply_markup=get_confirm_answer_keyboard(False, q_id))
         return
@@ -157,7 +162,8 @@ async def poll_answer(poll_ans: types.PollAnswer):
         reply += 'Правильный ответ: ' + users_params[user_id].get_choice_by_number(
             users_params[user_id].get_right_answer_number())['answer_text']
     q_id = users_params[user_id].question_id == users_params[user_id].questions_count
-    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(True, q_id))
+    flag = True if users_params[user_id].question['answer_description'] else False
+    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(flag, q_id))
     try:
         await db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct'])
     except Exception as e:
@@ -175,8 +181,16 @@ async def show_results(message: types.Message):
         await message.answer('Вы ещё не начали викторину!')
         return
     if users_params[user_id].finished:
-        await message.answer('Викторина закончена!')
-        await message.answer(f'Ваш результат: {users_params[user_id].total_score} баллов')
+        cnt = users_params[user_id].total_score
+        if cnt <= 9:
+            cnt = 9
+        elif cnt <= 17:
+            cnt = 17
+        elif cnt <= 27:
+            cnt = 27
+        await message.answer(result_text[cnt])
+        await message.answer(f'Ваш результат: {users_params[user_id].total_score} \n\nЧтобы получить приз, покажите '
+                             f'ваш код: \n{user_id}')
         return
     await message.answer('Вы ещё не закончили викторину!')
     return
@@ -187,10 +201,14 @@ async def send_next_question_message(message: types.Message = None, user_id=None
         user_id = message.from_user.id
     if not message:
         message = users_params[user_id].message
-    if users_params[user_id].question_id == users_params[user_id].questions_count:
-        await message.answer(users_params[user_id].group.group_preview)
+    if users_params[user_id].question_id == 1:
+        await message.answer(f'Раздел {users_params[user_id].group.id}: {users_params[user_id].group.group_name}')
         await asyncio.sleep(1)
-    await message.answer_poll(question=users_params[user_id].show_question(),
+        await message.answer(users_params[user_id].group.group_preview)
+        await asyncio.sleep(4)
+    await message.answer(users_params[user_id].show_question())
+    await asyncio.sleep(1)
+    await message.answer_poll(question='Выберите ответ:',
                               options=users_params[user_id].show_answers_text(),
                               type='quiz',
                               correct_option_id=users_params[user_id].get_right_answer_number(),

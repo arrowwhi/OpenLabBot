@@ -72,7 +72,7 @@ class NumbersCallbackFactory(CallbackData, prefix="fabnum"):
 def get_confirm_pi_keyboard(sf=False):
     builder = InlineKeyboardBuilder()
     builder.button(
-        text="✅Подтвердить", callback_data=NumbersCallbackFactory(action="confirm_pi")
+        text="✅ Подтвердить", callback_data=NumbersCallbackFactory(action="confirm_pi")
     )
     builder.button(
         text="Редактировать имя", callback_data=NumbersCallbackFactory(action="change_pi", value=1)
