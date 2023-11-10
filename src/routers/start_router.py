@@ -47,7 +47,7 @@ async def start(message: types.Message):
         await message.answer('Привет! Вижу, что ты уже начал викторину. Давай продолжим!',
                              reply_markup=make_row_keyboard(['Начать викторину!']))
     else:
-        await message.answer("Сначала, пожалуйста, укажи информацию об образвании.",
+        await message.answer("Сначала, пожалуйста, укажи информацию об образовании.",
                              reply_markup=make_row_keyboard(['Указать']))
 
 
