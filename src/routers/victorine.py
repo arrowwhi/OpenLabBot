@@ -219,7 +219,7 @@ async def bonus_answer(message: types.Message, state: FSMContext):
     asyncio.create_task(db.add_text_answer(
         message.from_user.id,
         right_answer['question_id'],
-        message.text.lower() == answer_text,
+        message.text.upper() == answer_text,
         message.text
     ))
     await message.answer(reply, reply_markup=get_final_kb(), parse_mode=ParseMode.HTML)
