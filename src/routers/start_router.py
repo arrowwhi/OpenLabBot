@@ -27,12 +27,12 @@ class AdminCommands(StatesGroup):
     check = State()
 
 
-@start_router.message(AdminFilter(admins=admins))
-async def start(message: types.Message):
-    """
-    Блокер
-    """
-    await message.answer('YOU SHALL NOT PASS!')
+# @start_router.message(AdminFilter(admins=admins))
+# async def start(message: types.Message):
+#     """
+#     Блокер
+#     """
+#     await message.answer('YOU SHALL NOT PASS!')
 
 
 @start_router.message(Command('start'))
