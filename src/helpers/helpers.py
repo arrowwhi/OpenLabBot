@@ -16,7 +16,7 @@ def make_row_keyboard(items: list[str]) -> ReplyKeyboardMarkup:
     :return: объект реплай-клавиатуры
     """
     row = [[KeyboardButton(text=item)] for item in items]
-    return ReplyKeyboardMarkup(keyboard=row, resize_keyboard=False, one_time_keyboard=True)
+    return ReplyKeyboardMarkup(keyboard=row, resize_keyboard=True, one_time_keyboard=True)
 
 
 def make_inline_keyboard(buttons):
