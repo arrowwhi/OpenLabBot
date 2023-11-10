@@ -25,10 +25,11 @@ reg_router = Router()
 
 
 # Обработчик для начала процесса регистрации при отправке сообщения "регистрация".
-@reg_router.message(F.text.lower() == 'регистрация')
+@reg_router.message(F.text.lower() == 'указать')
 async def start_registration(message: types.Message, state: FSMContext):
-    await message.answer('Пожалуйста, введи свои имя и фамилию.', reply_markup=types.ReplyKeyboardRemove())
-    await state.set_state(Registration.waiting_for_name)
+    await message.answer('Пожалуйста, выбери свой уровень.',
+                         reply_markup=make_row_keyboard(education_level))
+    await state.set_state(Registration.waiting_for_education)
 
 
 # Обработчики для каждого этапа процесса регистрации:
@@ -111,7 +112,7 @@ async def process_education(message: types.Message, state: FSMContext):
     if user_data.get('finished', False):
         await process_edu_sector(message, state)
         return
-    await message.answer('Последнее - веди свою сферу образования.', reply_markup=types.ReplyKeyboardRemove())
+    await message.answer('Также введи свою сферу образования.', reply_markup=types.ReplyKeyboardRemove())
     await state.set_state(Registration.waiting_for_edu_sector)
 
 
@@ -121,16 +122,13 @@ async def process_edu_sector(message: types.Message, state: FSMContext):
     await state.update_data(finished=True)
     sf = False
     user_data = await state.get_data()
-    ans = 'Проверь, правильно ли ты ввел свои данные:\n\n' \
-          f'Имя: {user_data["name"]}\n' \
-          f'Пол: {user_data["gender"]}\n' \
-          f'Возраст: {user_data["age"]} лет\n' \
+    ans = 'Ты ввел:\n\n' \
           f'Образование: {user_data["education"]}\n'
     if user_data.get('edu_sphere', False):
         print(user_data.get('edu_sector', False))
         ans += f'Образовательная сфера: {user_data["edu_sector"]}'
         sf = True
-    await message.answer(ans + '\n\n'+'Если всё верно, нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
+    await message.answer(ans + '\n\n' + 'Если верно, то нажми "Подтвердить". Если нет - выбери то, что нужно изменить',
                          reply_markup=get_confirm_pi_keyboard(sf))
     await state.set_state(Registration.waiting_for_confirm)
 
@@ -142,9 +140,9 @@ async def process_confirm(callback: types.CallbackQuery,
         user_data = await state.get_data()
         task = asyncio.create_task(db.add_user(
             tg_id=callback.from_user.id,
-            name=user_data['name'],
-            age=user_data['age'],
-            gender=user_data['gender'],
+            name=user_data.get('name', ''),
+            age=user_data.get('age', 18),
+            gender=user_data.get('gender', ''),
             education=user_data['education'],
             edu_sector=user_data.get('edu_sector', None)
         ))

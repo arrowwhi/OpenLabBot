@@ -1,12 +1,13 @@
 import asyncio
 
 from aiogram import Router, types
+from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from src.helpers.helpers import make_row_keyboard, get_confirm_answer_keyboard, get_final_kb
 from src.database.database import db
-from src.helpers.texts import result_text, finish_message
+from src.helpers.texts import result_text, finish_message, final_message
 
 
 class TextAnswer(StatesGroup):
@@ -112,7 +113,7 @@ async def get_question(message: types.Message, state: FSMContext):
 
     if users_params[user_id].finished:
         await message.answer(finish_message,
-                             reply_markup=make_row_keyboard(['Показать результаты']))
+                             reply_markup=make_row_keyboard(['Показать результаты']),parse_mode=ParseMode.HTML)
         return
 
     users_params[user_id].message = message
@@ -145,7 +146,8 @@ async def process_callback(callback: types.CallbackQuery, state: FSMContext):
         # await users_params[callback.from_user.id].get_question_number()
         if users_params[callback.from_user.id].finished:
             await callback.message.answer(finish_message,
-                                          reply_markup=make_row_keyboard(['Показать результаты']))
+                                          reply_markup=make_row_keyboard(['Показать результаты']),
+                                          parse_mode=ParseMode.HTML)
             return
         await send_next_question_message(user_id=callback.from_user.id, state=state)
         return
@@ -170,7 +172,8 @@ async def poll_answer(poll_ans: types.PollAnswer):
             users_params[user_id].get_right_answer_number())['answer_text']
     q_id = users_params[user_id].question_id == users_params[user_id].questions_count
     flag = True if users_params[user_id].question['answer_description'] else False
-    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(flag, q_id))
+    await users_params[user_id].message.answer(reply, reply_markup=get_confirm_answer_keyboard(flag, q_id),
+                                               parse_mode=ParseMode.HTML)
     asyncio.create_task(db.add_user_answer(user_id, ans['question_id'], ans_id, ans['is_correct']))
     try:
         await users_params[user_id].get_question_number()
@@ -192,7 +195,9 @@ async def show_results(message: types.Message):
             cnt = 17
         elif cnt <= 27:
             cnt = 27
-        await message.answer(result_text[cnt])
+        await message.answer(result_text[cnt], parse_mode=ParseMode.HTML)
+        await asyncio.sleep(1)
+        await message.answer(final_message, parse_mode=ParseMode.HTML)
         await asyncio.sleep(3)
         await message.answer(f'Ваш результат: {users_params[user_id].total_score} \n\nЧтобы получить приз, покажите '
                              f'ваш код: \n{user_id}')
@@ -206,7 +211,7 @@ async def bonus_answer(message: types.Message, state: FSMContext):
     right_answer = users_params[message.from_user.id].answers[0]
     print(right_answer)
     answer_text = right_answer['answer_text']
-    if message.text.lower() == answer_text:
+    if message.text.upper() == answer_text:
         reply = 'Верно!'
     else:
         reply = 'Неверно:(\n'
@@ -217,7 +222,7 @@ async def bonus_answer(message: types.Message, state: FSMContext):
         message.text.lower() == answer_text,
         message.text
     ))
-    await message.answer(reply, reply_markup=get_final_kb())
+    await message.answer(reply, reply_markup=get_final_kb(), parse_mode=ParseMode.HTML)
     try:
         await users_params[message.from_user.id].get_question_number()
     except Exception as e:
@@ -230,11 +235,14 @@ async def send_next_question_message(message: types.Message = None, user_id=None
     if not message:
         message = users_params[user_id].message
     if users_params[user_id].question_id == 1:
-        await message.answer(f'Раздел {users_params[user_id].group.id}: {users_params[user_id].group.group_name}')
-        await asyncio.sleep(1)
-        await message.answer(users_params[user_id].group.group_preview)
+        # await message.answer(f'Раздел {users_params[user_id].group.id}: {users_params[user_id].group.group_name}',
+        #                      parse_mode=ParseMode.HTML)
+        # await asyncio.sleep(1)
+        await message.answer(users_params[user_id].group.group_preview,
+                             parse_mode=ParseMode.HTML)
         await asyncio.sleep(4)
-    await message.answer(users_params[user_id].show_question())
+    await message.answer(users_params[user_id].show_question(),
+                         parse_mode=ParseMode.HTML)
     if len(users_params[user_id].show_answers_text()) == 1:
         await state.set_state(TextAnswer.waiting_for_answer)
         await message.answer('Ответ напишите в формате "С2Н5ОН"')

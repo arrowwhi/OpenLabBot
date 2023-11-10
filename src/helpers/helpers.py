@@ -74,15 +74,15 @@ def get_confirm_pi_keyboard(sf=False):
     builder.button(
         text="✅ Подтвердить", callback_data=NumbersCallbackFactory(action="confirm_pi")
     )
-    builder.button(
-        text="Редактировать имя", callback_data=NumbersCallbackFactory(action="change_pi", value=1)
-    )
-    builder.button(
-        text="Редактировать пол", callback_data=NumbersCallbackFactory(action="change_pi", value=2)
-    )
-    builder.button(
-        text="Редактировать возраст", callback_data=NumbersCallbackFactory(action="change_pi", value=3)
-    )
+    # builder.button(
+    #     text="Редактировать имя", callback_data=NumbersCallbackFactory(action="change_pi", value=1)
+    # )
+    # builder.button(
+    #     text="Редактировать пол", callback_data=NumbersCallbackFactory(action="change_pi", value=2)
+    # )
+    # builder.button(
+    #     text="Редактировать возраст", callback_data=NumbersCallbackFactory(action="change_pi", value=3)
+    # )
     builder.button(
         text="Редактировать образование", callback_data=NumbersCallbackFactory(action="change_pi", value=4)
     )

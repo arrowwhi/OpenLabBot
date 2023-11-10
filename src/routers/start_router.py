@@ -1,6 +1,7 @@
 import asyncio
 
 from aiogram import Router, types
+from aiogram.enums import ParseMode
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -39,14 +40,15 @@ async def start(message: types.Message):
     """
     Обработчик команды /start
     """
-    await message.answer(texts.start_message)
+    await message.answer(texts.start_message,
+                         parse_mode=ParseMode.HTML)
     await asyncio.sleep(1)
     if message.from_user.id in db.all_users:
-        await message.answer('Привет! Вижу, что ты уже зарегистрирован. Давай продолжим викторину!',
+        await message.answer('Привет! Вижу, что ты уже начал викторину. Давай продолжим!',
                              reply_markup=make_row_keyboard(['Начать викторину!']))
     else:
-        await message.answer("Для начала давай зарегистрируемся.",
-                             reply_markup=make_row_keyboard(['Регистрация']))
+        await message.answer("Сначала, пожалуйста, укажи информацию об образвании.",
+                             reply_markup=make_row_keyboard(['Указать']))
 
 
 @start_router.message(Command('reset'))

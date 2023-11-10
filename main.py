@@ -24,7 +24,6 @@ async def main():
     dp.include_router(start_router.start_router)
     dp.include_router(registration.reg_router)
     dp.include_router(victorine.victorine_router)
-    # TODO потом убрать
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

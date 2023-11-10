@@ -1,11 +1,9 @@
 import asyncio
 from datetime import datetime
-from sqlalchemy import func, BigInteger, and_, Text, delete, ColumnElement, text
+from sqlalchemy import func, BigInteger, and_, Text, text
 
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-# from sqlalchemy.orm import sessionmaker, selectinload
-# from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import declarative_base
 import configparser
 
