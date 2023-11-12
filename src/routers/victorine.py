@@ -245,7 +245,7 @@ async def send_next_question_message(message: types.Message = None, user_id=None
                          parse_mode=ParseMode.HTML)
     if len(users_params[user_id].show_answers_text()) == 1:
         await state.set_state(TextAnswer.waiting_for_answer)
-        await message.answer('Ответ напишите в формате "С2Н5ОН"')
+        # await message.answer('Ответ напишите в формате "С2Н5ОН"')
     else:
         await asyncio.sleep(1)
         await message.answer_poll(question='Выберите ответ:',
