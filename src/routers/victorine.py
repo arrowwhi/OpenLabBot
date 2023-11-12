@@ -140,7 +140,8 @@ async def process_callback(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == 'explanation':
         q_id = users_params[callback.from_user.id].question_id == 1
         await callback.message.answer(users_params[callback.from_user.id].question_description,
-                                      reply_markup=get_confirm_answer_keyboard(False, q_id))
+                                      reply_markup=get_confirm_answer_keyboard(False, q_id),
+                                      parse_mode=ParseMode.HTML)
         return
     elif callback.data == 'next_question':
         # await users_params[callback.from_user.id].get_question_number()
