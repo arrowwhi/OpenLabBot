@@ -168,7 +168,7 @@ set question='<b>ИСТОРИЯ ТРОИ</b>
 '
 where id=17;
 update questions
-set question='<b>УГЛЕРОДНЫЙ СЛЕД</b
+set question='<b>УГЛЕРОДНЫЙ СЛЕД</b>
 
 Предшественником <b>термина «углеродный след»</b> стала концепция «экологического следа», разработанная в 1990-х годах Уильямом Э. Рисом и Матисом Вакернагелем.
 
@@ -277,8 +277,5 @@ set question='В 1990 году студентами Калифорнийског
     answer_description=''
 where id=28;
 
-update question_groups
-set  = 
-where;
 
 
